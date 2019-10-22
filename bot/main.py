@@ -1,5 +1,5 @@
 import importlib
-from telegram.ext import PrefixHandler, CommandHandler, Filters, MessageHandler, Updater
+from telegram.ext import PrefixHandler, CommandHandler, Filters, MessageHandler, Updater, ConversationHandler
 from config.settings import TELEGRAM_TOKEN
 from impacta.timetable import getFullTimetable
 from impacta.gradetable import getNotes
@@ -11,6 +11,10 @@ def main():
 
     dispatcher.add_handler(
         PrefixHandler('/', 'horarios', getFullTimetable, pass_args=True)
+    )
+
+    grades_handler = ConversationHandler(
+        entry_points=[PrefixHandler('/', 'notas', getNotes, pass_args=True)]
     )
 
     dispatcher.add_handler(
