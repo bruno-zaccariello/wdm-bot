@@ -1,5 +1,7 @@
+import logging as log
+
 import re
-from telegram import ReplyKeyboardMarkup
+from telegram import ReplyKeyboardMarkup, Message, Update
 from telegram.ext import PrefixHandler, CommandHandler, Filters, MessageHandler, Updater, ConversationHandler
 
 from bs4 import BeautifulSoup as bs
@@ -17,12 +19,13 @@ url_grade_faults = base_url + 'aluno/notas-faltas.php'
 url_gradetable = base_url + 'aluno/{}'
 
 CHOOSING, REVEAL = range(2)
+CANCEL = 'Cancelar'
 
 reply_keyboard = []
 markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
 
 
-def encerrar(update, context):
+def cancel(update, context):
     update.message.reply_text(
         'Encerrado, por favor chamar o comando novamente caso queira continuar.')
     return ConversationHandler.END
@@ -107,9 +110,11 @@ def handleDisciplineRow(disciplineList, titles):
 def handleTable(update, context):
     code_url, s = context.user_data.get(
         'url'), context.user_data.get('session')
+
     student_grade_page = bs(
         s.get(url_gradetable.format(code_url)
               ).text, 'html.parser')
+
     grade_table_full = student_grade_page.find(id='table-boletim')
     grade_table = grade_table_full.find('tbody')
     grade_rows = grade_table.find_all('tr')
@@ -120,35 +125,65 @@ def handleTable(update, context):
     titles = [
         discipline[0] for discipline in disciplines_rows
     ]
+    log.debug(f'disciplines_rows: {disciplines_rows}\ntitles: {titles}')
     context.user_data['titles'] = dict(
-        [(disciplines_rows[i][0], i) for i in range(len(disciplines_rows))])
+        [(i, disciplines_rows[i][0]) for i in range(len(disciplines_rows))])
     context.user_data['disciplines'] = dict(
         [(titles[i], disciplines_rows[i]) for i in range(len(disciplines_rows))])
     context.user_data['context_ready'] = True
+    log.info(f'context ready')
+    log.debug(f'current context: {context}')
     return choose(update, context)
 
 
 def choose(update, context):
-    titles = context.user_data.get('titles')
-    response
-    print('chegoou aqui')
+    log.info('starting choosing process')
+    titles: dict = context.user_data.get('titles')
+
+    log.debug(f'User Pick a Option from: {titles}')
+
+    keyboard = []
+    log.debug(f'starting keyboard: {keyboard}')
+
+    helper = []
+    limit = len(titles.items()) - 1
+    for index, value in titles.items():
+        if len(helper) == 2:
+            keyboard.append(helper)
+            helper = [value]
+            continue
+        else:
+            helper.append(value)
+        if index == limit:
+            keyboard.append(helper)
+
+    if len(keyboard[-1]) < 2:
+        keyboard[-1].append(CANCEL)
+    else:
+        keyboard.append([CANCEL])
+
     update.message.reply_text(
-        'Por favor escolha a matéria desejada.'
-        ''.join([f'{i} - {titles[i]}\n' for i in range(len(titles))]),
-        reply_markup=ReplyKeyboardMarkup(list(titles.keys()), one_time_keyboard=True)
+        'Por favor escolha a matéria desejada.\nCaso tenha fechado o teclado virtual, digite Cancelar para cancelar a operação.',
+        reply_markup=ReplyKeyboardMarkup(
+            keyboard, one_time_keyboard=False)
     )
+    # ''.join([f'{k} - {v}\n' for k, v in titles.items()])
     return REVEAL
 
 
 def reveal(update, context):
+    selected_option = update.message.text
+    if selected_option == CANCEL:
+        return cancel(update, context)
     disciplinesDict = context.user_data.get('disciplines')
     disciplineRow = disciplinesDict.get(update.message.text)
     titles = context.user_data.get('titles')
     update.message.reply_text(handleDisciplineRow(disciplineRow, titles))
-    return CHOOSING
+    return choose(update, context)
 
 
 def getDisciplines(update, context):
+    log.info('start')
     titles, disciplines_rows = [], []
     if not context.user_data.get('context_ready', False):
         # Pega os dados do usuário na mensagem
@@ -156,8 +191,11 @@ def getDisciplines(update, context):
         passw = context.args[1]
         # Inicia a sessão na impacta
         s, success = getSession(user, passw)
+        log.debug(f'session obj: {s}\nsuccess: {success}')
+
         # Busca o codigo do aluno
         if not success:
+            log.error('failed to get user data')
             context.bot.send_message(
                 chat_id=update.message.chat.id,
                 text='Sinto muito, algo deu errado... Poderia tentar novamente?'
@@ -175,5 +213,5 @@ grades_handler = ConversationHandler(
         CHOOSING: [MessageHandler(Filters.text, choose)],
         REVEAL: [MessageHandler(Filters.text, reveal)]
     },
-    fallbacks=[MessageHandler(Filters.regex('^Encerrar$'), encerrar)]
+    fallbacks=[MessageHandler(Filters.regex('^Cancelar$'), cancel)]
 )
