@@ -163,7 +163,7 @@ def choose(update, context):
         keyboard.append([CANCEL])
 
     update.message.reply_text(
-        'Por favor escolha a matéria desejada.\nCaso tenha fechado o teclado virtual, digite Cancelar para cancelar a operação.',
+        'Por favor escolha a matéria desejada.\nCaso tenha fechado o teclado virtual, digite \'Cancelar\' para cancelar a operação.',
         reply_markup=ReplyKeyboardMarkup(
             keyboard, one_time_keyboard=False)
     )
