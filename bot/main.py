@@ -2,8 +2,8 @@ import logging as log
 import importlib
 from telegram.ext import PrefixHandler, CommandHandler, Filters, MessageHandler, Updater, ConversationHandler
 from config.settings import TELEGRAM_TOKEN
-from impacta.timetable import getFullTimetable
-from impacta.gradetable import grades_handler
+from modules.impacta.timetable import getFullTimetable
+from modules.impacta.gradetable import grades_handler
 
 log.basicConfig(filename='runtime.log', filemode='w', format='%(name)s | %(levelname)s: %(message)s', level=log.DEBUG)
 
