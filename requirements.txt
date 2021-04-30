@@ -23,5 +23,5 @@ soupsieve==1.9.3
 tornado==6.0.3
 typed-ast==1.4.0
 Unidecode==1.1.1
-urllib3==1.25.5
+urllib3==1.25.8
 wrapt==1.11.2
